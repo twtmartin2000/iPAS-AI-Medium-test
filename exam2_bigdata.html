@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPAS AI 應用規畫師 - 考科二戰情室 (大數據處理分析與應用)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        },
+                        dark: '#1e1b4b',
+                        paper: '#fafaf9'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+        .reading-content { font-size: 1.05rem; line-height: 1.8; color: #334155; letter-spacing: 0.015em; }
+        @media (min-width: 768px) { .reading-content { font-size: 1.125rem; } }
+        
+        .sidebar-transition { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .fade-enter { animation: fadeEnter 0.4s ease-out forwards; }
+        
+        @keyframes fadeEnter {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chart-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; height: 320px; }
+        .sidebar-open { transform: translateX(0) !important; }
+        .content-expanded { margin-left: 0 !important; }
+        
+        .toc-active {
+            background-color: #e0e7ff;
+            border-left-color: #4f46e5;
+            color: #4338ca;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-brand-50 font-sans antialiased h-screen overflow-hidden flex selection:bg-brand-200 selection:text-brand-900">
+
+    <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/60 z-30 hidden transition-opacity lg:hidden backdrop-blur-sm" onclick="app.toggleSidebar()"></div>
+
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-72 md:w-80 bg-white border-r border-brand-200 flex flex-col z-40 sidebar-transition -translate-x-full lg:translate-x-0 shadow-2xl lg:shadow-none">
+        <div class="h-16 flex items-center justify-between px-5 border-b border-brand-100 bg-brand-50 shrink-0">
+            <div class="flex items-center gap-2 text-brand-800">
+                <span class="text-xl">🗄️</span>
+                <h1 class="font-bold tracking-wide">考科二 考點目錄</h1>
+            </div>
+            <button onclick="app.toggleSidebar()" class="lg:hidden p-2 text-slate-500 hover:text-brand-700 rounded-md hover:bg-brand-100">
+                <span class="text-xl">✕</span>
+            </button>
+        </div>
+
+        <div class="p-4 bg-white border-b border-slate-100 shrink-0 space-y-3 shadow-sm z-10">
+            <button onclick="app.showOverview()" id="btn-toc-overview" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg bg-brand-100 text-brand-800 font-bold transition-all hover:bg-brand-200">
+                <span>📊</span> 戰情總覽與資料庫
+            </button>
+            <div class="relative">
+                <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+                <input type="text" id="search-input" placeholder="搜尋題意或關鍵字..." class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all outline-none shadow-inner">
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3" id="toc-container"></div>
+
+        <div class="p-4 bg-white border-t border-slate-100 shrink-0 shadow-sm z-10">
+            <a href="exam1_full.html" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-xl border-2 border-brand-200 text-brand-700 font-bold transition-all hover:bg-brand-50 hover:border-brand-400">
+                <span class="text-lg">⬅️</span> 返回 考科一戰情室
+            </a>
+        </div>
+    </aside>
+
+    <main id="main-content" class="flex-1 flex flex-col h-full bg-paper w-full transition-all duration-300 lg:ml-[20rem]">
+        
+        <header class="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-slate-200 bg-white/90 backdrop-blur-md shrink-0 sticky top-0 z-20 shadow-sm">
+            <div class="flex items-center gap-3">
+                <button onclick="app.toggleSidebar()" class="p-2 -ml-2 text-slate-600 hover:bg-brand-50 hover:text-brand-700 rounded-md transition-colors">
+                    <span class="text-xl">☰</span>
+                </button>
+                <span class="text-sm font-bold text-brand-700 hidden sm:inline-block bg-brand-50 px-3 py-1 rounded-full border border-brand-200">iPAS 考科二：大數據處理分析與應用</span>
+            </div>
+        </header>
+
+        <article id="reading-canvas" class="flex-1 overflow-y-auto px-4 py-8 lg:p-12 xl:px-24">
+            
+            <div id="view-overview" class="max-w-5xl mx-auto fade-enter">
+                <div class="text-center mb-12">
+                    <h1 class="text-3xl md:text-4xl font-serif font-bold text-slate-900 mb-4 tracking-wide">考科二 大數據實務解析指南</h1>
+                    <p class="text-lg text-slate-600">涵蓋數據採集、分散式儲存、資料探勘、商業智慧與資安治理</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                    <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 class="text-xl font-bold text-brand-900 mb-6 flex items-center gap-2">
+                            <span>🚀</span> 企業大數據落地規劃
+                        </h2>
+                        <div class="prose max-w-none text-slate-600 space-y-4">
+                            <p>本模組將大數據技術轉換為企業可落地的企畫案，包含：</p>
+                            <ul class="list-disc pl-5 space-y-2 text-sm">
+                                <li><strong>深度解析：</strong> 分散式系統架構原理與技術選型依據。</li>
+                                <li><strong>實務提案：</strong> 從企業視角出發，提供包含 <code>痛點收斂</code>、<code>解方推薦</code>、<code>PoC 驗證</code>、<code>風險合規</code> 與 <code>人機協作</code> 的模塊。</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <h2 class="text-xl font-bold text-brand-900 mb-2 flex items-center gap-2">
+                            <span>📊</span> 考點知識分佈
+                        </h2>
+                        <div class="chart-container"><canvas id="overviewChart"></canvas></div>
+                        <div id="chart-legend-container" class="mt-6 space-y-3"></div>
+                    </div>
+                </div>
+                
+                <div class="text-center pb-12">
+                    <button onclick="app.goToQuestion(1)" class="inline-flex items-center gap-2 px-8 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-full font-bold transition-all shadow-lg hover:-translate-y-1 text-lg">
+                        開始實務演練 <span>🚀</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="view-question" class="max-w-4xl mx-auto hidden pb-24"></div>
+
+        </article>
+
+        <footer id="bottom-nav" class="hidden h-20 border-t border-slate-200 bg-white/95 backdrop-blur-md shrink-0 flex items-center justify-between px-4 lg:px-12 z-20 shadow-sm">
+            <button onclick="app.navigate(-1)" id="btn-prev" class="flex items-center gap-2 px-5 py-3 text-slate-600 hover:text-brand-700 hover:bg-brand-50 rounded-xl transition-all disabled:opacity-30 font-bold">
+                <span class="text-xl">←</span> 上一題
+            </button>
+            <div class="text-sm font-bold text-slate-400 bg-slate-100 px-4 py-1.5 rounded-full shadow-inner" id="page-indicator">-- / --</div>
+            <button onclick="app.navigate(1)" id="btn-next" class="flex items-center gap-2 px-5 py-3 text-slate-600 hover:text-brand-700 hover:bg-brand-50 rounded-xl transition-all disabled:opacity-30 font-bold">
+                下一題 <span class="text-xl">→</span>
+            </button>
+        </footer>
+
+    </main>
+
+    <script>
+        const db = [
+            // Cat 1: 數據採集與前處理
+            { id: 1, cat: 1, title: '資料基礎建設與斷點續傳', q: '企業在建置大數據分散式採集系統時，為了因應網路不穩定或下游節點死機，應優先考量何種機制確保數據不遺漏？', opts: ['(A) 提高記憶體快取', '(B) 啟用基於磁碟的持久化隊列與斷點續傳機制（WAL / Disk-backed Queue）', '(C) 增加壓縮率', '(D) 提高採集頻率'], ans: 'B', exp: '單純提高記憶體快取在斷電時會導致數據完全遺失。WAL與持久化隊列能確保數據安全落地於磁碟，重啟後可自動續傳。', pain: '跨國廠區網路斷線時，當天生產線數據完全蒸發。', sol: '部署 Logstash 搭配 Persistent Queues 機制。', poc: '拔除網線 30 分鐘，復原後驗證數據筆數是否一致。', risk: '磁碟空間若滿載會引發採集端回壓（Backpressure）卡死。', human: '維運工程師需設定磁碟容量熔斷告警。' },
+            { id: 2, cat: 1, title: '資料清洗與離群值處理', q: '感測器偶發出現高達 999 度的異常高溫。若要自動清洗且不破壞時序連續性，應推薦何種處置？', opts: ['(A) 直接刪除該筆資料', '(B) 使用拉格朗日插值法補值', '(C) 採用移動中位數或基於 3σ 原則進行臨界值蓋帽處理（Winsorization）', '(D) 將異常值改為 0'], ans: 'C', exp: '直接刪除會破壞時序完整性。移動中位數去噪或蓋帽法（將離群值限制在邊界值）是最穩健的去噪做法。', pain: '瞬間突波導致自動化預測模型頻繁發出誤報。', sol: '在串流前置端加入時序蓋帽法濾鏡。', poc: '對比清洗前後異常警報的假陽性率（FP Rate）。', risk: '處置過度可能會將真正的設備異常當作雜訊過濾。', human: '調整 σ 閾值需與廠區設備專家共同審定。' },
+            { id: 3, cat: 1, title: '缺失值填補策略', q: '在不降低樣本量的前提下，哪一種缺失值填補做法最能保留資料的原始變異數（Variance）？', opts: ['(A) 全數填補為 0', '(B) 填補總平均數', '(C) 使用多重插補法（Multiple Imputation）或 MICE 演算法', '(D) 隨機盲填'], ans: 'C', exp: '填補平均數會低估真實變異數。MICE 透過其他變數預測缺失值並多次模擬，能最大程度還原真實統計特性。', pain: '財務預測模型因大量填補平均數，對極端風險喪失預測能力。', sol: '導入 miceforest 庫進行特徵級缺失值插補。', poc: '計算填補前後特徵方差的 Kolmogorov-Smirnov 檢定。', risk: '運算成本隨著變數增加呈幾何級數上升。', human: '科學家需人工評估哪些特徵不適用填補。' },
+            { id: 4, cat: 1, title: '結構、半結構與非結構化資料', q: '關於資料型態的分類，下列何者完全正確？', opts: ['(A) 醫學影像 — 結構化', '(B) 電子病歷交換檔（XML/JSON）— 半結構化資料', '(C) 護理紀錄 — 結構化', '(D) SQL 資料庫 — 非結構化'], ans: 'B', exp: 'SQL 為嚴謹結構化；JSON/XML 具標籤但不需固定綱要，屬半結構化；影像與純文字屬非結構化。', pain: '院內異質資料散落各處，無法建立病患全貌視角。', sol: '打造智慧醫療湖（Data Lake）整合異質資料。', poc: '實測整合 SQL、JSON 與文字紀錄的關聯查詢延遲。', risk: '非結構化資料萃取時易有隱私外洩風險。', human: '資訊室需制定統一的 Meta-data 標籤規範。' },
+            { id: 5, cat: 1, title: 'ETL 核心技術與廣播關聯', q: 'ETL 工具將大表與小維度表進行關聯常遭遇 OOM 崩潰。最佳優化手法為何？', opts: ['(A) 加大實體記憶體', '(B) 啟用廣播關聯技術（Broadcast Hash Join）', '(C) 改用傳統 SQL 逐次查詢', '(D) 排序後手動比對'], ans: 'B', exp: 'Broadcast Join 將小表直接廣播到所有節點記憶體，消除大表與小表高能耗的網路洗牌（Shuffle）瓶頸。', pain: '結算報表執行超過 6 小時，耽誤決策上市天數。', sol: '在 Spark ETL 管線中顯式宣告 broadcast(small_table)。', poc: '比對優化前後 Shuffle Read/Write 的網路流量消耗。', risk: '小表體積估算錯誤會直接撐爆工作節點記憶體。', human: '嚴格限定維度表廣播的大小上限（如 100MB）。' },
+            { id: 6, cat: 1, title: '串流背壓機制 (Backpressure)', q: '若資料採集層未實作「背壓機制」，最常直接導致系統發生何種災難？', opts: ['(A) 儲存成本下降', '(B) 消費端緩衝區溢出（Buffer Overflow）引發記憶體耗盡死機', '(C) 數據精度提升', '(D) 傳輸速率加倍'], ans: 'B', exp: '缺乏背壓會使緩衝區被爆量數據充填，最終因 OOM 導致整個集群連鎖倒下。', pain: '搶購活動開始，日誌採集器把後端大數據資料庫沖垮。', sol: '使用 Kafka 作為緩衝排隊層，啟用 Flink 動態背壓。', poc: '模擬 5 倍峰值流量，觀察 Kafka 能否正常堆積數據。', risk: '堆積的資料需設定過期時間（TTL）避免撐爆硬碟。', human: 'SRE 團隊需監控 Consumer Lag 指標，手動調配算力。' },
+            { id: 7, cat: 1, title: '網路爬蟲與合規', q: '為落實法規與合乎網路禮儀，網路爬蟲程式首要遵守且讀取的遠端檔案為何？', opts: ['(A) index.html', '(B) robots.txt', '(C) sitemap.xml', '(D) config.json'], ans: 'B', exp: 'robots.txt 為網站管理員設定的爬蟲排除協議。強行爬取禁止目錄極易構成侵權。', pain: '競爭對手售價變更頻繁，人工調查緩不濟急。', sol: '開發 Scrapy 爬蟲框架，嚴格解析 robots.txt 範圍。', poc: '驗證程式在遇到禁止目錄時是否會果斷中斷。', risk: '頻率過高可能導致對方伺服器過載，觸發防禦性告訴。', human: '爬蟲需將 User-Agent 設為企業真實名稱維持透明度。' },
+            { id: 8, cat: 1, title: '資料標準化與量綱消除', q: '若不進行特徵變換直接將「消費次數」與「百萬消費總額」送入 K-Means 分群，會產生何種後果？', opts: ['(A) 模型無法收斂', '(B) 分群結果完全被「總額」主導，「次數」特徵形同失效', '(C) 計算速度變快', '(D) 分群數量加倍'], ans: 'B', exp: 'K-Means 依賴距離計算。若未消除量綱，數值極大的特徵權重會壓倒性勝過小特徵，破壞統計公平性。', pain: '客戶分群結果與業務感受脫鉤，只看消費額排序。', sol: '在模型前置端加入 StandardScaler（Z-Score 標準化）。', poc: '比對標準化前後特徵對於分群質心的貢獻度權重。', risk: '遇到極端離群值時，Z-Score 的效果會受拉扯。', human: '依特徵分佈選擇 Min-Max 或 RobustScaler。' },
+            { id: 9, cat: 1, title: '異質數據來源整合 (CDC)', q: '將關聯式資料庫即時同步至大數據平台，且不能造成線上生產負擔，應推薦哪種架構？', opts: ['(A) 每隔 5 分鐘執行全表查詢', '(B) 導入基於資料庫日誌擷取的變更數據捕獲機制（CDC，如 Debezium）', '(C) 手動匯出 CSV', '(D) 開放自由讀寫'], ans: 'B', exp: 'CDC 透過解析底層重做日誌，不經過 SQL 引擎，對資料庫幾無負擔，達成近乎零延遲同步。', pain: '批次數據抽取導致 ERP 卡頓，一線員工怨聲載道。', sol: '部署 Kafka Connect 結合 Debezium 進行日誌級 CDC 串流。', poc: '測量大數據平台接收端的端到端延遲毫秒數。', risk: '資料庫進行 Schema 變更（DDL）時會導致 CDC 斷線。', human: 'DBA 需與大數據團隊建立變更通報機制。' },
+            { id: 10, cat: 1, title: 'NLP 前處理順序', q: '處理巨量文本前處理 Pipeline 的標準順序通常為何？', opts: ['(A) 斷詞 -> 去除標籤 -> 去除停用詞 -> 詞矩陣', '(B) 去除 HTML 標籤與特殊符號 -> 斷詞 -> 去除停用詞 -> 轉為詞矩陣', '(C) 詞矩陣 -> 斷詞 -> 去除停用詞', '(D) 隨機挑選'], ans: 'B', exp: '必須先清除網頁標籤等雜訊，否則會干擾斷詞器；斷詞完成後才能依據詞表比對、移除無意義的停用詞。', pain: '情緒分析模型精準度低，常被網頁亂碼干擾。', sol: '建立大數據分散式前處理 UDF 函數。', poc: '抽查處理後的文字，確保不再夾帶網頁原始碼。', risk: '過度激進的特殊符號去除會抹煞強烈情緒特徵。', human: '專家與工程師共同定義產業專屬停用詞表。' },
+
+            // Cat 2: 大數據儲存與架構
+            { id: 11, cat: 2, title: '列式儲存原理', q: '為了極大化加速「聚合查詢」並提高壓縮率，底層儲存格式應優先選擇何者？', opts: ['(A) 列式儲存（CSV/JSON）', '(B) 行式儲存（Columnar-oriented，如 Parquet/ORC）', '(C) 鍵值儲存', '(D) 網格儲存'], ans: 'B', exp: 'Parquet 將相同欄位連續儲存，聚合查詢時可跳過無關欄位（IO節省），且相同型態資料能帶來極高壓縮比。', pain: '撈取財報總和時，讀取大量無關欄位導致查詢超時。', sol: '資料湖底層格式全面由 Textfile 遷移至 Parquet。', poc: '執行聚合語法，對比兩者掃描資料量與耗時。', risk: '行式儲存不適合頻繁的單筆資料隨機插入修改（Upsert）。', human: '規範上游批次寫入的檔案大小，避免產生大量小檔案。' },
+            { id: 12, cat: 2, title: 'Lambda 與 Kappa 架構', q: 'Lambda 架構與 Kappa 架構最關鍵的根本性結構差異為何？', opts: ['(A) Lambda 不用公有雲', '(B) Lambda 維護批次與串流雙軌；Kappa 移除批次層，全面以串流引擎應對所有處理', '(C) Kappa 速度較慢', '(D) Lambda 不支援 SQL'], ans: 'B', exp: 'Lambda 需維護兩套程式碼；Kappa 透過 Kafka 重播日誌完成歷史重算，消除了雙軌代碼同步的痛苦。', pain: '批次與串流系統寫了兩份重疊代碼，維護成本翻倍。', sol: '轉向 Kappa 架構，下游統一交由 Flink 執行。', poc: '在 Flink 重播 30 天歷史數據，驗證產出結果。', risk: '歷史數據留存於 Kafka 會大幅增加硬碟成本。', human: '精算「資料留存天數」與「硬體預算」的折衷。' },
+            { id: 13, cat: 2, title: 'HDFS 容錯機制', q: '當 HDFS 中某台 DataNode 硬碟損壞，系統如何自動保證數據不丟失？', opts: ['(A) 去外部雲端下載', '(B) NameNode 發現失效後，自動指令其他節點針對副本數不足的區塊進行非同步複製', '(C) 記憶體補值', '(D) 暫停服務警報'], ans: 'B', exp: 'NameNode 透過心跳機制監控節點，發現副本數少於設定值時，會自動在健康節點發起複製，維持資料冗餘。', pain: '單機儲存一旦壞軌，系統停機且救援花費百萬。', sol: '部署 HDFS 叢集，配置 3 副本高容錯策略。', poc: '隨機拔除伺服器電源，驗證讀取是否正常無損。', risk: '副本數設為 3 代表硬碟採購成本直接放大 3 倍。', human: '網管人員定期根據面板告警更換壞軌硬碟即可。' },
+            { id: 14, cat: 2, title: 'NoSQL 資料庫選型', q: '物聯網企業需要儲存每秒百萬筆的時序監測數據，應匹配哪種儲存元件？', opts: ['(A) 關聯式資料庫 (MySQL)', '(B) 分散式寬列/時序資料庫（如 Cassandra、HBase、InfluxDB）', '(C) 圖形資料庫 (Neo4j)', '(D) 純記憶體快取'], ans: 'B', exp: 'Cassandra/HBase 的 LSM-Tree 架構將隨機寫入轉化為順序寫入，具備線性寫入擴展能力，適合 IoT 高頻寫入。', pain: '設備暴增導致 SQL 資料庫寫入死鎖，報表癱瘓。', sol: '導入 Apache Cassandra 作為 IoT 數據主接收庫。', poc: '執行百萬 QPS 寫入壓測，觀察延遲是否穩定。', risk: 'NoSQL 不支援複雜的跨表多維度 Join 查詢。', human: '重新設計「以查詢為導向」的資料表結構。' },
+            { id: 15, cat: 2, title: '資料湖之 ACID 交易層', q: '解決資料湖無法支援單筆局部修改的痛點，Lakehouse 引入了哪種開源元件？', opts: ['(A) Apache Iceberg / Delta Lake / Apache Hudi', '(B) Redis', '(C) Spark Core', '(D) Docker'], ans: 'A', exp: 'Iceberg/Delta/Hudi 透過維護元數據清單與日誌，為資料湖注入 ACID 事務能力與行級 Upsert 功能。', pain: 'GDPR 要求刪除單一客戶資料，傳統做法需整區重寫。', sol: '導入 Apache Iceberg 湖倉架構。', poc: '對億級資料湖執行單筆 DELETE，實測秒級更新。', risk: '頻繁 Upsert 會產生大量碎小檔案版本，拖慢檢索速度。', human: '設定定期的優化 (Compact) 腳本清理歷史冗餘。' },
+            { id: 16, cat: 2, title: '記憶體資料庫快取應用', q: '應對高達數十萬人的即時購物車查詢與商品秒殺，前端應部署何種元件？', opts: ['(A) Hive', '(B) Hadoop', '(C) Redis 記憶體資料庫', '(D) Postgres'], ans: 'C', exp: 'Redis 數據完全運行於記憶體中，讀寫效能可達十萬級 QPS，是解決高負載讀寫延遲的核心快取元件。', pain: '搶購瞬間資料庫連線數撐滿，網頁跳出 502 錯誤。', sol: '建立 Redis 叢集快取層，實作熱點商品預熱機制。', poc: '壓測實測併發流量能否被快取層消化達 95% 以上。', risk: '快取雪崩將使流量瞬間直擊後端資料庫導致毀滅。', human: '精心設計快取過期因子與熔斷保護機制。' },
+            { id: 17, cat: 2, title: '分散式運算之洗牌 (Shuffle)', q: '分散式運算中，哪一個階段最消耗網路頻寬與磁碟 I/O 資源，常成為瓶頸？', opts: ['(A) Map 階段', '(B) Shuffle（洗牌）階段', '(C) 記憶體初始化', '(D) 程式碼上傳'], ans: 'B', exp: 'Shuffle 是將相同鍵的資料透過網路拉取、重新分發排序的過程，涉及跨節點巨量傳輸與頻繁落盤。', pain: '大數據計算頻繁超時，網路卡在集體交換資料節點。', sol: '使用 reduceByKey 取代 groupByKey 進行局部預聚合。', poc: '比對優化前後 Spark UI 上的 Shuffle Write 資料量。', risk: '資料傾斜 (Data Skew) 會導致特定節點記憶體崩潰。', human: '手動加入隨機鹽（Salting）擾動技術打散傾斜資料。' },
+            { id: 18, cat: 2, title: '雲端物件儲存選型', q: '將巨量資料遷移至公有雲，何者是最具備高彈性且成本低廉的「雲端資料湖地基」？', opts: ['(A) Amazon EBS 雲端雲碟', '(B) Amazon S3 物件儲存服務', '(C) Amazon EC2 本地暫存碟', '(D) RDS 資料庫'], ans: 'B', exp: 'S3 為無容量上限的物件儲存，價格遠低於區塊儲存，實現「儲存與算力分離」的現代架構。', pain: '地端叢集硬碟滿載，需編列百萬預算擴充實體櫃。', sol: '將冷數據全數遷移至 AWS S3 儲存。', poc: '精算儲存費用，對比地端機房折舊與維護成本。', risk: '頻繁跨網路從 S3 下載會產生高昂的出境流量費。', human: '設定生命週期機制將極冷資料轉入 Glacier 封存。' },
+            { id: 19, cat: 2, title: '大數據分區 (Partitioning)', q: '避免依「國家」查詢時全表掃描百億筆資料，最有效的儲存規劃技術為何？', opts: ['(A) 建立更多索引', '(B) 啟用基於「國家」欄位的資料分區（Partitioning）', '(C) 將資料壓縮成一個大檔案', '(D) 改用記憶體'], ans: 'B', exp: '分區在底層硬碟上直接將資料切分為不同子目錄，查詢時能直奔該子目錄讀取，大幅減少 I/O。', pain: '日誌查詢每次耗時數十分鐘，分析師效率低下。', sol: '強制以「日期」與「國家」作為雙層核心分區欄位。', poc: '執行查詢，在控制台確認實際掃描的路徑與縮減數。', risk: '欄位基數過高（如使用者ID）會產生百萬小目錄摧毀系統。', human: '嚴禁高基數分區，改用分桶（Bucketing）打散。' },
+            { id: 20, cat: 2, title: '檔案格式優化 (Parquet/ORC)', q: 'Parquet 內嵌了何種數據，使得引擎可直接跳過整個資料區塊（謂詞下推）？', opts: ['(A) 使用者密碼', '(B) 內建輕量級索引與統計資訊（包含 Min / Max 值）', '(C) 網頁代碼', '(D) 隨機擾動碼'], ans: 'B', exp: '當查詢條件超出區塊紀錄的 Min/Max 範圍時，引擎判定區塊無答案直接跳過不讀，即謂詞下推優化。', pain: '報表系統每天掃描數 TB 歷史文件，算力費用高昂。', sol: '將原始文字日誌轉置並高強度壓縮存為 Parquet 格式。', poc: '對比轉換前後的物理空間節省比例與查詢速度。', risk: '轉換過程需消耗短期龐大的 CPU 與記憶體。', human: '在 ETL 排程中預留充足算力進行每日壓實。' },
+
+            // Cat 3: 數據分析與資料探勘
+            { id: 21, cat: 3, title: '關聯規則 (Lift 提升度)', q: '商品 A 與 B 的「提升度（Lift）」精確等於 1.0，這代表什麼含義？', opts: ['(A) 買 A 絕對會買 B', '(B) A 與 B 互相獨立，彼此之間毫無關聯', '(C) A 賣得比 B 好', '(D) 算錯了'], ans: 'B', exp: 'Lift = 1 代表兩商品同時購買機率等於各自獨立銷售機率相乘，全無交叉銷售價值；Lift > 1 才是正向關聯。', pain: '單憑直覺將商品打包促銷，未經客觀驗證提升度。', sol: '導入 FP-Growth 演算法，過濾出 Lift > 1.5 的組合。', poc: '實測高提升度組合促銷，觀察加購率是否顯著高。', risk: '忽略支持度，高 Lift 可能是極少數常客拉抬的假象。', human: '依據 AI 高 Lift 清單，手動策劃主題貨架陳列。' },
+            { id: 22, cat: 3, title: '時序模型 (ARIMA)', q: '使用 ARIMA 模型時，必須先對原始時間序列數據進行何種處理以確保平穩性？', opts: ['(A) 四捨五入', '(B) 進行差分（Differencing）', '(C) 去除週末數據', '(D) 乘以隨機權重'], ans: 'B', exp: 'ARIMA 假設數據特徵不隨時間平移改變。若具備強烈趨勢（非平穩），必須透過差分消除趨勢。', pain: '預測模型忽略了年度成長趨勢，預測結果一成不變。', sol: '建立自動化平穩性檢定，動態決定差分階數（d）。', poc: '觀察差分後 ADF 檢定的 P-value 是否小於 0.05。', risk: '過度差分會徹底抹煞資料中隱含的長線經濟循環特徵。', human: '人工評估是否升級採用 Prophet 或 LSTM 模型。' },
+            { id: 23, cat: 3, title: '稀疏矩陣 (Sparse Matrix)', q: '推薦系統矩陣高達 99% 都是空白的。應如何避免記憶體被撐爆？', opts: ['(A) 增加記憶體', '(B) 改採用壓縮稀疏行（CSR）格式僅儲存非零元素', '(C) 填補 0', '(D) 毀滅矩陣'], ans: 'B', exp: '電商矩陣極度稀疏，CSR 格式只紀錄非零座標與數值，能將儲存空間壓縮數萬倍。', pain: '啟動模型加載矩陣，伺服器就報錯記憶體耗盡死機。', sol: '強制啟用 SciPy 或 Spark MLLib 的 Sparse 結構。', poc: '對比 Dense 與 Sparse 記憶體佔用空間大小。', risk: '稀疏格式在某些點積運算無法使用 GPU 向量化加速。', human: '在矩陣稀疏度低於臨界值時自動切換回標準矩陣。' },
+            { id: 24, cat: 3, title: '決策樹優化 (XGBoost 直方圖)', q: 'XGBoost 為了在巨量數據下極速尋找切分點，底層採用了何種優化演算法？', opts: ['(A) 暴力窮舉所有數值', '(B) 基於特徵直方圖（Histogram-based）的近似演算法與資料分桶', '(C) 隨機擲骰', '(D) 僅在第一台計算'], ans: 'B', exp: 'XGBoost 將連續特徵切分成固定數量的桶子建立直方圖，每次只對邊界切分評估，速度極快。', pain: '每次重訓模型都要耗時 3 天，跟不上詐騙變更速度。', sol: '導入 XGBoost，啟用直方圖特徵分桶優化。', poc: '實測重訓天數縮短至 2 小時，且 AUC 無顯著差異。', risk: '特徵分桶過度粗糙會丟失細微的關鍵分佈邊界。', human: '根據特徵偏態分佈，人工微調最大分桶上限參數。' },
+            { id: 25, cat: 3, title: '圖形結構分析 (PageRank)', q: '分析企業股權結構揪出幕後核心控制人，最適合導入哪一種圖形演算法量化影響力？', opts: ['(A) K-Means', '(B) PageRank 網頁排名演算法', '(C) 線性迴歸', '(D) 決策樹'], ans: 'B', exp: 'PageRank 認為「被高影響力節點指向的節點影響力就高」，適合分析洗錢網絡或股權交叉中心。', pain: '人工審查股權穿透圖耗時數週，易被交叉持股欺騙。', sol: '導出圖形至 Spark GraphX，執行 PageRank 計算。', poc: '輸出影響力權重前 10 名，比對金管稽核名單。', risk: '節點達十億級時，矩陣乘法會引發網路洗牌瓶頸。', human: '風控長根據高風險清單進行深度人工法規查核。' },
+            { id: 26, cat: 3, title: '大數據 P-value 陷阱', q: '樣本數億時幾乎所有細微差異都會算出 P < 0.05。面對此陷阱應如何建議？', opts: ['(A) 盲目慶祝', '(B) 必須同時檢視「效應量（Effect Size）」與其實際帶來的商業價值', '(C) 質疑數據算錯', '(D) 取消測試'], ans: 'B', exp: '樣本極大時檢定力趨近 100%。必須改用效應量（如 Cohen\'s d）評估是否具備真實商業經濟投資價值。', pain: '新系統統計顯著，但實際上線營收沒增加，白付算力費。', sol: '將「最低實質商業效應（MIE）」納入及格線指標。', poc: '設定效應量大於 0.1 且轉換率提升大於 0.5% 才放量。', risk: '高難度效應量可能導致團隊放棄具微小優勢的長線專案。', human: '業務副總手動定義各產品線的經濟實質及格閾值。' },
+            { id: 27, cat: 3, title: '特徵選擇 (Lasso 正規化)', q: '何者是能自動進行特徵稀疏化篩選，避免維度災難的穩健方法？', opts: ['(A) 皮爾森相關係數', '(B) 導入包含 L1 正則化的 Lasso 迴歸，將無效特徵係數歸零', '(C) 盲猜', '(D) 複製特徵'], ans: 'B', exp: 'L1 正則化（Lasso）在優化中會產生稀疏解，自動將無貢獻的變數係數強行壓縮至 0，實現變數篩選。', pain: '塞入過多業務特徵，導致嚴重過擬合與推論延遲。', sol: '在模型管線中嵌入 Lasso 嵌入式特徵選擇器。', poc: '觀察特徵權重，篩選出係數非零的前 30 個核心特徵。', risk: '存在高度相關特徵時，Lasso 會隨機挑選抹煞業務含義。', human: '業務專家對篩選後的變數清單進行常理合規性評估。' },
+            { id: 28, cat: 3, title: '主題模型 (LDA)', q: '想在無人工標註下自動歸納數十萬篇輿情文章背後的熱門話題，應推薦何種技術？', opts: ['(A) 邏輯迴歸', '(B) 潛在狄利克雷分配（LDA 主題模型）', '(C) 隨機森林', '(D) 卷積神經網路'], ans: 'B', exp: 'LDA 是貝氏機率主題模型，透過迭代優化能精準揪出哪些詞常出現在同一個話題中，自動完成聚類。', pain: '公關每天耗費數小時閱讀輿情，仍無法定義趨勢權重。', sol: '部署自動化 LDA 主題分析管線，每日定時萃取。', poc: '可視化 LDA 產出的主題字詞雲，驗證話題合理性。', risk: '預先指定的 K 值設定不當會產生話題過度模糊或碎裂。', human: '公關總監根據 AI 萃取的字詞群，人工為話題命名。' },
+
+            // Cat 4: 數據視覺化與商業智慧
+            { id: 31, cat: 4, title: '視覺混淆 (Visual Cluttering)', q: '在散佈圖繪製千萬筆點導致瀏覽器卡死與視覺混淆，最佳改善策略為何？', opts: ['(A) 換大螢幕', '(B) 改用六角網格特徵聚合圖（Hexbin Plot）或密度圖', '(C) 分開檔案', '(D) 降低解析度'], ans: 'B', exp: '千萬個點重疊失去密度感且癱瘓渲染。Hexbin 計算落入六角格的點數並用顏色深淺表示，免除效能災難。', pain: '大螢幕看板載入極慢，看不出客戶聚集的真實核心熱區。', sol: '升級為基於 WebGL 與 Hexbin 聚合的大數據視覺圖表。', poc: '實測秒級載入千萬級聚合熱力圖，清晰呈現高價值群體。', risk: '視覺聚合會抹煞個別極端巨大離群值（VIP）的可見度。', human: '提供切換按鈕，允許點擊切換至 Top 100 單獨標記圖。' },
+            { id: 33, cat: 4, title: '大數據 BI 快取架構', q: '儀表板每次篩選都要卡頓 30 秒，大數據平台架構師首要採取的優化手段為何？', opts: ['(A) 降級平台', '(B) 建置資料集市，啟用多維度預計算聚合快取與物化視圖（Materialized View）', '(C) 請長官耐心等待', '(D) 看純數字'], ans: 'B', exp: '直連底層巨量日誌必引發高延遲。透過 ETL 將常用維度預先計算存入物化視圖，儀表板讀取結果達成秒開。', pain: '週會長官刷面板時資料庫 CPU 被推升至 100% 癱瘓。', sol: '實施 BI 前端與底層解耦，建立物化視圖預計算機制。', poc: '比對直連查詢（30秒）與快取查詢（200毫秒）體驗。', risk: '預計算會失去秒級即時能力，存在資料滯後性。', human: '面板上方標註「數據更新時間」，建立長官正確心理預期。' },
+            { id: 34, cat: 4, title: '動態地理數據視覺化', q: '即時在地圖上監控數萬名外送員動態軌跡，最常導入哪一種地理前端框架？', opts: ['(A) Excel Chart', '(B) Leaflet 結合 Deck.gl / Mapbox', '(C) Pyplot', '(D) Photoshop'], ans: 'B', exp: 'Deck.gl 是高效能地理視覺化框架，底層採用 WebGL 硬體加速繪圖，能流暢繪製數十萬條動態軌跡。', pain: '調度戰情室圖表頻繁卡死，無法即時分配外送員。', sol: '打造基於 WebSocket 串流與 Deck.gl 的地圖調度面板。', poc: '模擬十萬名司機 GPS 同時閃爍，確認幀率保持 60 FPS。', risk: '舊型電腦若不支援 WebGL 加速會完全無法開啟網頁。', human: '統一為一線調度員升級具備基礎獨立顯卡的電腦硬體。' },
+
+            // Cat 5: 大數據治理、合規與資安
+            { id: 41, cat: 5, title: '資料庫去識別化 (K-Anonymity)', q: '防止駭客透過外部公開資料進行連結攻擊拼湊出個資，應實施何種穩健指標？', opts: ['(A) 姓名改星號', '(B) 實施 K-匿名化（確保相同特徵組合至少有 K 個人）與 L-多樣性', '(C) 提高價格', '(D) 限制下載速度'], ans: 'B', exp: '單純遮姓名易被年齡郵遞區號等交叉比對破解。K-匿名化將特徵級距化，保證庫中同樣特徵者至少有 K 人。', pain: '釋出醫療數據供外部訓練，有病患隱私被還原的合規風險。', sol: '執行 K=5 匿名化與 L=3 多樣性演算法管線。', poc: '拿真實名冊進行模擬重建攻擊，實測還原率降至 0%。', risk: 'K 值設得過大會導致資料被極度模糊化，喪失統計精準度。', human: '倫理委員會與科學家開會，人工拍板最合適的 K 值。' },
+            { id: 42, cat: 5, title: '動態資料遮罩 (Dynamic Masking)', q: '依據不同登入角色，系統自動將身分證即時遮蔽為星號或顯示明文。此技術稱為？', opts: ['(A) 靜態資料庫加密', '(B) 欄位級動態資料遮罩（Dynamic Data Masking）', '(C) 全盤封鎖', '(D) 數位浮水印'], ans: 'B', exp: '在 SQL 查詢出境閘道口，依登入角色權限動態決定是否套用 MASK 函數，免除複製多套資料庫的維護災難。', pain: '行政偷看名人個資事件頻傳，引發衛福部罰款危機。', sol: '引入 Apache Ranger 角色權限動態遮罩機制。', poc: '以不同權限帳號執行相同查詢，比對即時遮蔽效果。', risk: '動態遮罩解析會增加微量的 SQL 語法解析延遲。', human: '人資需與資訊室定期盤點員工職務權限矩陣。' },
+            { id: 43, cat: 5, title: '數據血統治理 (Data Lineage)', q: '為了在幾分鐘內追溯是哪段 ETL 代碼寫錯公式導致最終報表錯誤，首要依賴何種工具？', opts: ['(A) 數據血統圖譜（Data Lineage，如 Apache Atlas）', '(B) 重新安裝作業系統', '(C) 發送郵件詢問', '(D) 重訓模型'], ans: 'A', exp: 'Data Lineage 是一張有向無環圖，詳細描繪了欄位是由哪個庫經過哪段 SQL 揉合生成的，方便究責。', pain: '報表出錯時工程師互相推諉，耗費數天找不到污染源。', sol: '導入 Apache Atlas 自動動態繪製全公司數據血統圖譜。', poc: '輸入錯誤指標名稱，系統秒級呈現其上游關聯表與 ETL 節點。', risk: '手動寫死在 Python 內的隱性資料轉換無法自動偵測。', human: '治理委員會規範新專案上線前必須完成血統關聯驗收。' },
+            { id: 44, cat: 5, title: '個資被遺忘權落實', q: '客戶要求執行「被遺忘權」時，如何在分散式海量儲存中合法落實？', opts: ['(A) 拒絕客戶', '(B) 利用湖倉一體架構（Apache Iceberg）徹底執行行級擦除並提交新元數據', '(C) 僅在前端隱藏', '(D) 格式化硬碟'], ans: 'B', exp: '僅前端隱藏屬嚴重違法。現代大數據透過 Iceberg 具備 ACID 更新能力格式，能精確抹除單一客戶行。', pain: '法務心驚膽戰，技術團隊每次需手動跑數小時重置歷史檔案。', sol: '底層全面封裝 Iceberg 交易控制，打造自動排程擦除管線。', poc: '實測系統在 5 分鐘內於 PB 級湖倉中徹底清除特定蹤跡。', risk: '擦除後會導致部分歷史總計統計報表發生微幅數值改變。', human: '法務與營運定義如何保留無害的「去識別化財務統計」。' },
+            { id: 45, cat: 5, title: '大數據資安防護 (Kerberos)', q: '防範駭客透過偽造身分竊取全公司 Hadoop 核心資料，必須強制開啟何種防護機制？', opts: ['(A) 密碼改為 123456', '(B) 部署基於可信第三方的 Kerberos 網路安全認證協議', '(C) 限制無線連線', '(D) 定期重新開機'], ans: 'B', exp: '開源 Hadoop 預設是信任機制極不安全。Kerberos 確保每個請求的真實身份皆經過中央金鑰伺服器驗證。', pain: '滲透測試輕鬆利用偽造身分將測試大數據庫全數拉取。', sol: '啟動 Hadoop 集群全面 Kerberos 化升級專案。', poc: '用偽造身分發送指令，驗證系統 100% 吐出安全阻斷。', risk: '程式碼需加入票據續約邏輯，極易因票據過期導致自動排程死機。', human: '工程師需建立自動化金鑰發放與動態續約監控管線。' }
+        ];
+
+        const app = {
+            state: { view: 'overview', activeId: null },
+            init() {
+                this.renderSidebarList();
+                this.renderChart();
+                this.showOverview();
+            },
+            toggleSidebar() {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+                document.getElementById('mobile-overlay').classList.toggle('hidden');
+                if(window.innerWidth >= 1024) document.getElementById('main-content').classList.toggle('content-expanded');
+            },
+            showOverview() {
+                this.state.view = 'overview';
+                this.state.activeId = null;
+                document.getElementById('view-overview').classList.remove('hidden');
+                document.getElementById('view-question').classList.add('hidden');
+                document.getElementById('bottom-nav').classList.add('hidden');
+                document.querySelectorAll('.toc-item').forEach(el => el.classList.remove('toc-active'));
+                if(window.innerWidth < 1024) this.toggleSidebar();
+                window.scrollTo(0,0);
+            },
+            goToQuestion(id) {
+                this.state.view = 'question';
+                this.state.activeId = id;
+                document.getElementById('view-overview').classList.add('hidden');
+                document.getElementById('view-question').classList.remove('hidden');
+                document.getElementById('bottom-nav').classList.remove('hidden');
+                document.getElementById('bottom-nav').classList.add('flex');
+
+                document.querySelectorAll('.toc-item').forEach(el => el.classList.remove('toc-active'));
+                const activeToc = document.getElementById(`toc-q-${id}`);
+                if(activeToc) {
+                    activeToc.classList.add('toc-active');
+                    activeToc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                
+                this.renderQuestion(id);
+                this.updateNav();
+                
+                if(window.innerWidth < 1024 && !document.getElementById('sidebar').classList.contains('-translate-x-full')) this.toggleSidebar();
+                document.getElementById('main-content').scrollTo({top: 0, behavior: 'smooth'});
+            },
+            renderSidebarList() {
+                const search = document.getElementById('search-input')?.value.toLowerCase() || '';
+                const cats = [
+                    { id: 1, name: '數據採集與前處理', icon: '📥' },
+                    { id: 2, name: '大數據儲存與架構', icon: '💾' },
+                    { id: 3, name: '數據分析與資料探勘', icon: '⛏️' },
+                    { id: 4, name: '數據視覺化與商業智慧', icon: '📈' },
+                    { id: 5, name: '大數據治理與資安', icon: '🛡️' }
+                ];
+                
+                let html = '';
+                cats.forEach(c => {
+                    const qList = db.filter(q => q.cat === c.id && (q.title.toLowerCase().includes(search) || q.q.toLowerCase().includes(search)));
+                    if (qList.length > 0) {
+                        html += `<div class="mb-5"><div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-2 flex items-center gap-1"><span>${c.icon}</span> ${c.name}</div><ul class="space-y-1">`;
+                        qList.forEach(q => {
+                            html += `<li><button onclick="app.goToQuestion(${q.id})" id="toc-q-${q.id}" class="toc-item w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border-l-4 border-transparent transition-all truncate"><span class="font-mono text-brand-500 mr-1">${q.id}.</span> ${q.title}</button></li>`;
+                        });
+                        html += `</ul></div>`;
+                    }
+                });
+                document.getElementById('toc-container').innerHTML = html || '<div class="text-center text-sm text-slate-400 p-4">找不到相關題目</div>';
+            },
+            renderQuestion(id) {
+                const q = db.find(d => d.id === id);
+                if (!q) return;
+
+                const cats = ['無', '數據採集與前處理', '大數據儲存與架構', '數據分析與資料探勘', '數據視覺化與商業智慧', '大數據治理與資安'];
+                const optsHtml = q.opts.map(opt => {
+                    const isAns = opt.includes(`(${q.ans})`);
+                    return `
+                        <div class="flex items-start gap-3 p-4 rounded-xl ${isAns ? 'bg-brand-50 border border-brand-300 shadow-sm' : 'bg-white border border-slate-200'} transition-all mb-3">
+                            <div class="shrink-0 mt-0.5 font-bold ${isAns ? 'text-brand-600' : 'text-slate-300'}">${isAns ? '✅' : '⚪'}</div>
+                            <div class="reading-content ${isAns ? 'text-brand-900 font-bold' : 'text-slate-600'}">${opt}</div>
+                        </div>`;
+                }).join('');
+
+                const html = `
+                    <div class="fade-enter">
+                        <div class="flex flex-wrap items-center gap-3 mb-6 text-sm">
+                            <span class="font-mono bg-dark text-white px-3 py-1 rounded-md font-bold shadow-sm">考題 ${q.id}</span>
+                            <span class="text-brand-700 font-bold px-3 py-1 bg-brand-50 border border-brand-200 rounded-md shadow-sm">${cats[q.cat]}</span>
+                        </div>
+                        <h2 class="text-2xl md:text-3xl font-serif font-bold text-slate-900 mb-6 leading-snug tracking-wide border-b-2 border-brand-500 inline-block pb-1">${q.title}</h2>
+                        <div class="reading-content font-bold text-slate-800 mb-8 text-xl">${q.q}</div>
+                        <div class="mb-10 pl-1 md:pl-2">${optsHtml}</div>
+
+                        <div class="mb-14 relative bg-blue-50/50 p-6 md:p-8 rounded-2xl border border-blue-100">
+                            <div class="absolute -left-0 top-6 bottom-6 w-1.5 bg-blue-400 rounded-r-full"></div>
+                            <h3 class="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2"><span class="bg-blue-100 p-1.5 rounded-md">💡</span> 深度解析</h3>
+                            <div class="reading-content text-slate-700">${q.exp}</div>
+                        </div>
+
+                        <div class="flex items-center gap-4 my-12 opacity-50">
+                            <hr class="flex-1 border-slate-300 border-dashed">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Enterprise Proposal</span>
+                            <hr class="flex-1 border-slate-300 border-dashed">
+                        </div>
+
+                        <div>
+                            <h3 class="text-2xl font-serif font-bold text-slate-900 mb-8 flex items-center gap-3">👔 企業大數據落地模塊</h3>
+                            <div class="space-y-6">
+                                <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group"><div class="text-xs font-bold text-rose-500 uppercase tracking-wider mb-2">Module 1 : 痛點收斂</div><div class="reading-content relative z-10">${q.pain}</div></div>
+                                <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group"><div class="text-xs font-bold text-amber-500 uppercase tracking-wider mb-2">Module 2 : 解方與架構推薦</div><div class="reading-content relative z-10">${q.sol}</div></div>
+                                <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group"><div class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-2">Module 3 : PoC 概念驗證設計</div><div class="reading-content relative z-10">${q.poc}</div></div>
+                                <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group"><div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Module 4 : 風險與法規評估</div><div class="reading-content relative z-10">${q.risk}</div></div>
+                                <div class="bg-gradient-to-br from-brand-50 to-white p-6 md:p-8 rounded-2xl border border-brand-200 shadow-md border-t-4 border-t-brand-500 relative overflow-hidden group"><div class="text-xs font-bold text-brand-600 uppercase tracking-wider mb-2">Module 5 : HITL 人機協作治理</div><div class="reading-content text-brand-900 font-medium relative z-10">${q.human}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+                document.getElementById('view-question').innerHTML = html;
+            },
+            updateNav() {
+                const currentIndex = db.findIndex(q => q.id === this.state.activeId);
+                document.getElementById('page-indicator').innerText = `${currentIndex + 1} / ${db.length}`;
+                document.getElementById('btn-prev').disabled = (currentIndex <= 0);
+                document.getElementById('btn-next').disabled = (currentIndex >= db.length - 1);
+                
+                document.onkeydown = (e) => {
+                    if(this.state.view !== 'question') return;
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); this.navigate(1); }
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); this.navigate(-1); }
+                };
+            },
+            navigate(dir) {
+                const currentIndex = db.findIndex(q => q.id === this.state.activeId);
+                const nextIndex = currentIndex + dir;
+                if (nextIndex >= 0 && nextIndex < db.length) this.goToQuestion(db[nextIndex].id);
+            },
+            renderChart() {
+                const labels = ['採集與前處理', '儲存與架構', '分析與資料探勘', '視覺化與BI', '治理與資安'];
+                const counts = [
+                    db.filter(q=>q.cat===1).length,
+                    db.filter(q=>q.cat===2).length,
+                    db.filter(q=>q.cat===3).length,
+                    db.filter(q=>q.cat===4).length,
+                    db.filter(q=>q.cat===5).length
+                ];
+                const total = db.length;
+                const colors = ['#3730a3', '#4f46e5', '#6366f1', '#818cf8', '#a5b4fc'];
+                
+                const ctx = document.getElementById('overviewChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: labels, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 0, hoverOffset: 8 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '72%' }
+                });
+
+                const legendHtml = labels.map((label, i) => `
+                    <div class="flex justify-between items-center p-3 md:p-4 bg-brand-50 rounded-xl border border-brand-100 hover:bg-brand-100 transition-colors">
+                        <div class="flex items-center gap-3"><span class="w-3.5 h-3.5 rounded-full shadow-sm" style="background-color: ${colors[i]}"></span><span class="font-bold text-brand-900 text-sm">${label}</span></div>
+                        <div class="text-right shrink-0"><span class="font-bold text-slate-800 text-sm">${counts[i]} 題</span><span class="text-xs text-brand-700 font-bold bg-white px-2 py-1 rounded-md shadow-sm ml-2">${Math.round(counts[i]/total*100)}%</span></div>
+                    </div>`).join('');
+                document.getElementById('chart-legend-container').innerHTML = legendHtml;
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => { 
+            document.getElementById('search-input').addEventListener('input', () => app.renderSidebarList());
+            app.init(); 
+        });
+    </script>
+</body>
+</html>
